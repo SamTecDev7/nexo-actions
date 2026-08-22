@@ -3,6 +3,7 @@ param(
     [int]$Port = 8765,
     [string]$BindAddress = '',
     [string]$Distro = 'Ubuntu',
+    [string]$WslUser = '',
     [string]$WslProject = '',
     [string]$WslPython = '',
     [string]$WindowsPython = '',
@@ -56,10 +57,29 @@ if (-not $WslProject) {
 if (-not $WslPython -and $WslProject -match '^/home/([^/]+)/') {
     $WslPython = "/home/$($matches[1])/.venvs/ovos/bin/python"
 }
+if (-not $WslUser) {
+    $projectUser = if ($WslProject -match '^/home/([a-z_][a-z0-9_-]{0,31})(?:/|$)') { $matches[1] } else { '' }
+    $pythonUser = if ($WslPython -match '^/home/([a-z_][a-z0-9_-]{0,31})(?:/|$)') { $matches[1] } else { '' }
+    if ($projectUser -and $pythonUser -and $projectUser -ne $pythonUser) {
+        throw 'WslProject e WslPython pertencem a usuarios WSL diferentes.'
+    }
+    $WslUser = if ($projectUser) { $projectUser } else { $pythonUser }
+}
+if (-not $WslUser) {
+    throw 'Informe -WslUser ao instalar fora de um caminho UNC do WSL.'
+}
 if (-not $WslProject -or -not $WslPython) {
     throw 'Informe -WslProject e -WslPython ao instalar fora de um caminho UNC do WSL.'
 }
-foreach ($runtimeValue in @($Distro, $WslProject, $WslPython)) {
+if ($WslUser -notmatch '^[a-z_][a-z0-9_-]{0,31}$') {
+    throw 'O usuario WSL contem caracteres invalidos.'
+}
+foreach ($homePath in @($WslProject, $WslPython)) {
+    if ($homePath -match '^/home/([^/]+)(?:/|$)' -and $matches[1] -cne $WslUser) {
+        throw "O caminho $homePath nao pertence ao usuario WSL '$WslUser'."
+    }
+}
+foreach ($runtimeValue in @($Distro, $WslUser, $WslProject, $WslPython)) {
     if ($runtimeValue -match '[\x0A\x0D=]') { throw 'Configuração WSL contém caractere inválido.' }
 }
 
@@ -141,6 +161,7 @@ Set-NexoPrivateFileAcl -Path $tokenPath | Out-Null
 
 $runtimeLines = @(
     "distro=$Distro",
+    "wsl_user=$WslUser",
     "wsl_project=$WslProject",
     "wsl_python=$WslPython",
     "windows_python=$python",

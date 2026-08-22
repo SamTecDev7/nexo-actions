@@ -430,7 +430,8 @@ systemctl --user daemon-reload
     if (-not (Test-Path -LiteralPath $setupWindows -PathType Leaf)) { throw "setup_windows.ps1 não encontrado em $windowsRepo" }
     $setupArguments = @(
         '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $setupWindows,
-        '-Distro', $Distro, '-WslProject', $InstallPath, '-WslPython', "$venvPath/bin/python",
+        '-Distro', $Distro, '-WslUser', $WslUser,
+        '-WslProject', $InstallPath, '-WslPython', "$venvPath/bin/python",
         '-WindowsPython', $windowsPython
     )
     if (-not $enableAutostart) { $setupArguments += '-NoAutostart' }
@@ -449,7 +450,7 @@ curl -fsS --max-time 8 http://127.0.0.1:8787/api/state >/dev/null
     $commitResult = Invoke-NativeProcess $wslExe @('-d', $Distro, '-u', $WslUser, '--exec', 'git', '-C', $InstallPath, 'rev-parse', 'HEAD') -Quiet
     $recordedSourceRef = if ($Mode -eq 'Repair') { $commitResult.Output.Trim() } else { $SourceRef }
     $installation = [ordered]@{
-        version = '2.0.0'; installed_at = (Get-Date).ToString('o')
+        version = '2.0.1'; installed_at = (Get-Date).ToString('o')
         repository_url = $RepositoryUrl; source_ref = $recordedSourceRef; source_commit = $commitResult.Output.Trim(); distro = $Distro
         wsl_user = $WslUser; wsl_project = $InstallPath; wsl_python = "$venvPath/bin/python"
         provider = 'openai'; local_fallback_enabled = $false

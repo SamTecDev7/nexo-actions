@@ -17,9 +17,9 @@ using System.Windows.Forms;
 [assembly: AssemblyCompany("Nexo")]
 [assembly: AssemblyProduct("Nexo")]
 [assembly: AssemblyCopyright("Copyright © 2026")]
-[assembly: AssemblyVersion("2.0.0.0")]
-[assembly: AssemblyFileVersion("2.0.0.0")]
-[assembly: AssemblyInformationalVersion("2.0.0")]
+[assembly: AssemblyVersion("2.0.1.0")]
+[assembly: AssemblyFileVersion("2.0.1.0")]
+[assembly: AssemblyInformationalVersion("2.0.1")]
 
 namespace Nexo.WindowsLauncher
 {
@@ -32,6 +32,8 @@ namespace Nexo.WindowsLauncher
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            LauncherLog.Write("Nexo launcher started (version " +
+                              Assembly.GetExecutingAssembly().GetName().Version + ").");
 
             bool firstInstance;
             instanceMutex = new Mutex(true, @"Local\Nexo.WindowsLauncher", out firstInstance);
@@ -63,6 +65,8 @@ namespace Nexo.WindowsLauncher
         {
             splash = new StartupForm();
             splash.RetryRequested += delegate { StartNexo(true); };
+            splash.InstallRequested += delegate { LauncherRuntime.OpenInstaller(); };
+            splash.OpenLogRequested += delegate { LauncherRuntime.OpenLog(); };
             splash.ExitRequested += delegate { ExitThread(); };
 
             ContextMenuStrip menu = new ContextMenuStrip();
@@ -104,7 +108,7 @@ namespace Nexo.WindowsLauncher
                     Interlocked.Exchange(ref operationRunning, 0);
                     if (!result.Success)
                     {
-                        splash.ShowFailure(result.Message, result.Details);
+                        splash.ShowFailure(result.Message, result.Details, result.NeedsInstall);
                         tray.ShowBalloonTip(5000, "Nexo não iniciou", result.Message, ToolTipIcon.Error);
                         return;
                     }
@@ -186,7 +190,7 @@ namespace Nexo.WindowsLauncher
                     }
                     else
                     {
-                        splash.ShowFailure(result.Message, result.Details);
+                        splash.ShowFailure(result.Message, result.Details, result.NeedsInstall);
                         tray.ShowBalloonTip(5000, "Operação não concluída", result.Message, ToolTipIcon.Error);
                     }
                 });
@@ -229,16 +233,20 @@ namespace Nexo.WindowsLauncher
         private readonly Label detail;
         private readonly Label brand;
         private readonly Button retry;
+        private readonly Button openLog;
         private readonly Button close;
         private Point dragOrigin;
+        private bool installAction;
 
         public event EventHandler RetryRequested;
+        public event EventHandler InstallRequested;
+        public event EventHandler OpenLogRequested;
         public event EventHandler ExitRequested;
 
         public StartupForm()
         {
             Text = "Nexo";
-            ClientSize = new Size(520, 420);
+            ClientSize = new Size(520, 458);
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.None;
             BackColor = Color.FromArgb(2, 5, 10);
@@ -279,7 +287,7 @@ namespace Nexo.WindowsLauncher
             detail = MakeLabel("Preparando o ambiente local", 9, FontStyle.Regular, Color.FromArgb(105, 166, 184));
             detail.TextAlign = ContentAlignment.TopCenter;
             detail.Location = new Point(36, 331);
-            detail.Size = new Size(448, 48);
+            detail.Size = new Size(448, 76);
 
             retry = new Button();
             retry.Text = "TENTAR NOVAMENTE";
@@ -289,13 +297,31 @@ namespace Nexo.WindowsLauncher
             retry.FlatAppearance.BorderSize = 1;
             retry.ForeColor = Color.FromArgb(185, 245, 255);
             retry.BackColor = Color.FromArgb(7, 29, 38);
-            retry.Location = new Point(182, 376);
+            retry.Location = new Point(94, 414);
             retry.Size = new Size(156, 30);
             retry.Cursor = Cursors.Hand;
             retry.Visible = false;
             retry.Click += delegate
             {
-                EventHandler handler = RetryRequested;
+                EventHandler handler = installAction ? InstallRequested : RetryRequested;
+                if (handler != null) handler(this, EventArgs.Empty);
+            };
+
+            openLog = new Button();
+            openLog.Text = "ABRIR DIAGNÓSTICO";
+            openLog.Font = new Font("Segoe UI", 8, FontStyle.Bold);
+            openLog.FlatStyle = FlatStyle.Flat;
+            openLog.FlatAppearance.BorderColor = Color.FromArgb(73, 99, 112);
+            openLog.FlatAppearance.BorderSize = 1;
+            openLog.ForeColor = Color.FromArgb(166, 205, 216);
+            openLog.BackColor = Color.FromArgb(7, 16, 23);
+            openLog.Location = new Point(270, 414);
+            openLog.Size = new Size(156, 30);
+            openLog.Cursor = Cursors.Hand;
+            openLog.Visible = false;
+            openLog.Click += delegate
+            {
+                EventHandler handler = OpenLogRequested;
                 if (handler != null) handler(this, EventArgs.Empty);
             };
 
@@ -305,6 +331,7 @@ namespace Nexo.WindowsLauncher
             Controls.Add(title);
             Controls.Add(detail);
             Controls.Add(retry);
+            Controls.Add(openLog);
 
             MouseDown += BeginDrag;
             brand.MouseDown += BeginDrag;
@@ -332,7 +359,10 @@ namespace Nexo.WindowsLauncher
             title.Text = heading;
             title.ForeColor = Color.FromArgb(230, 252, 255);
             detail.Text = message;
+            installAction = false;
+            retry.Text = "TENTAR NOVAMENTE";
             retry.Visible = false;
+            openLog.Visible = false;
             hologram.Mode = HologramMode.Working;
         }
 
@@ -347,16 +377,22 @@ namespace Nexo.WindowsLauncher
             title.Text = "NEXO DISPONÍVEL";
             title.ForeColor = Color.FromArgb(128, 255, 228);
             detail.Text = message;
+            installAction = false;
+            retry.Text = "TENTAR NOVAMENTE";
             retry.Visible = false;
+            openLog.Visible = false;
             hologram.Mode = HologramMode.Ready;
         }
 
-        public void ShowFailure(string message, string diagnostics)
+        public void ShowFailure(string message, string diagnostics, bool needsInstall)
         {
             title.Text = "INICIALIZAÇÃO INTERROMPIDA";
             title.ForeColor = Color.FromArgb(255, 135, 160);
             detail.Text = message + (string.IsNullOrEmpty(diagnostics) ? "" : "\n" + diagnostics);
+            installAction = needsInstall;
+            retry.Text = needsInstall ? "INSTALAR / REPARAR" : "TENTAR NOVAMENTE";
             retry.Visible = true;
+            openLog.Visible = true;
             hologram.Mode = HologramMode.Error;
         }
 
@@ -472,6 +508,7 @@ namespace Nexo.WindowsLauncher
         public string Message;
         public string Details;
         public string Warning;
+        public bool NeedsInstall;
 
         public static StartupResult Ok(string message, string warning)
         {
@@ -482,23 +519,80 @@ namespace Nexo.WindowsLauncher
         {
             return new StartupResult { Success = false, Message = message, Details = details };
         }
+
+        public static StartupResult SetupRequired(string message, string details)
+        {
+            return new StartupResult
+            {
+                Success = false,
+                Message = message,
+                Details = details,
+                NeedsInstall = true
+            };
+        }
     }
 
     internal sealed class ProcessResult
     {
-        public int ExitCode;
-        public string Output;
-        public string Error;
+        public int ExitCode = -1;
+        public string Output = "";
+        public string Error = "";
         public bool TimedOut;
+    }
+
+    internal static class LauncherLog
+    {
+        private static readonly object Sync = new object();
+        private static readonly string LogDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            @"Nexo\logs");
+        public static readonly string FilePath = Path.Combine(LogDirectory, "launcher.log");
+
+        public static void Write(string message)
+        {
+            try
+            {
+                lock (Sync)
+                {
+                    Directory.CreateDirectory(LogDirectory);
+                    if (File.Exists(FilePath) && new FileInfo(FilePath).Length > 1024 * 1024)
+                    {
+                        string previous = FilePath + ".1";
+                        if (File.Exists(previous)) File.Delete(previous);
+                        File.Move(FilePath, previous);
+                    }
+                    string safe = Sanitize(message);
+                    File.AppendAllText(
+                        FilePath,
+                        DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff zzz") +
+                        " | " + safe + Environment.NewLine,
+                        Encoding.UTF8);
+                }
+            }
+            catch { }
+        }
+
+        private static string Sanitize(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "(empty)";
+            string safe = value.Replace("\0", "").Replace("\r", " ").Replace("\n", " ");
+            int bearer = safe.IndexOf("Bearer ", StringComparison.OrdinalIgnoreCase);
+            if (bearer >= 0) safe = safe.Substring(0, bearer) + "Bearer [redacted]";
+            return safe.Length > 1800 ? safe.Substring(0, 1800) + "..." : safe;
+        }
     }
 
     internal sealed class RuntimeSettings
     {
         public string Distro = "Ubuntu";
+        public string WslUser = "";
         public string WslProject = "";
         public string WslPython = "";
         public string WindowsPython = "";
         public string UiBase = "http://127.0.0.1:8787";
+        public string ConfigPath = "";
+        public string ConfigError = "";
+        public bool ConfigPresent;
 
         public static RuntimeSettings Load()
         {
@@ -506,7 +600,9 @@ namespace Nexo.WindowsLauncher
             string root = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Nexo");
             string path = Path.Combine(root, "runtime.conf");
-            if (!File.Exists(path)) return settings;
+            settings.ConfigPath = path;
+            settings.ConfigPresent = File.Exists(path);
+            if (!settings.ConfigPresent) return settings;
             try
             {
                 foreach (string raw in File.ReadAllLines(path, Encoding.UTF8))
@@ -519,6 +615,7 @@ namespace Nexo.WindowsLauncher
                     string value = line.Substring(separator + 1).Trim();
                     if (value.Length == 0 || value.Contains("\r") || value.Contains("\n")) continue;
                     if (key == "distro") settings.Distro = value;
+                    else if (key == "wsl_user") settings.WslUser = value;
                     else if (key == "wsl_project") settings.WslProject = value;
                     else if (key == "wsl_python") settings.WslPython = value;
                     else if (key == "windows_python") settings.WindowsPython = value;
@@ -526,14 +623,20 @@ namespace Nexo.WindowsLauncher
                         settings.UiBase = "http://127.0.0.1:8787";
                 }
             }
-            catch { }
+            catch (Exception error)
+            {
+                settings.ConfigError = error.Message;
+            }
             return settings;
         }
     }
 
     internal static class LauncherRuntime
     {
-        private static readonly RuntimeSettings Settings = RuntimeSettings.Load();
+        private static RuntimeSettings Settings = RuntimeSettings.Load();
+        private const string EssentialServices =
+            "ovos-messagebus.service nexo-pulse-aec.service ovos-audio.service " +
+            "ovos-listener.service ovos-core.service nexo-audio-watchdog.service nexo-ui.service";
 
         private static readonly string WslExe = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.System), "wsl.exe");
@@ -542,32 +645,66 @@ namespace Nexo.WindowsLauncher
         {
             try
             {
-                status("Conectando ao núcleo", "Inicializando o Ubuntu no WSL");
-                ProcessResult start = RunWsl(
-                    "systemctl --user start ovos-messagebus.service nexo-pulse-aec.service " +
-                    "ovos-audio.service ovos-listener.service ovos-core.service " +
-                    "nexo-audio-watchdog.service nexo-ui.service && " +
-                    "(systemctl --user list-unit-files nexo-neural-tts.service --no-legend 2>/dev/null | " +
-                    "grep -q nexo-neural-tts && systemctl --user start nexo-neural-tts.service || true)",
-                    90000);
-                if (start.TimedOut || start.ExitCode != 0)
+                Settings = RuntimeSettings.Load();
+                LauncherLog.Write("EnsureStarted: beginning startup validation.");
+                if (!Settings.ConfigPresent)
+                {
+                    LauncherLog.Write("EnsureStarted: runtime.conf is missing at " + Settings.ConfigPath);
+                    return StartupResult.SetupRequired(
+                        "O Nexo ainda não foi instalado neste Windows.",
+                        "Execute o NexoSetup.exe. Ele preserva seus dados e configura o WSL automaticamente.");
+                }
+                if (!string.IsNullOrEmpty(Settings.ConfigError))
+                {
+                    LauncherLog.Write("EnsureStarted: runtime.conf could not be read: " + Settings.ConfigError);
+                    return StartupResult.SetupRequired(
+                        "A configuração local do Nexo precisa ser reparada.",
+                        "Execute o NexoSetup.exe e escolha Instalar/Atualizar.");
+                }
+                if (!File.Exists(WslExe))
+                    return StartupResult.SetupRequired(
+                        "O Subsistema do Windows para Linux não está disponível.",
+                        "Execute o NexoSetup.exe para concluir os pré-requisitos.");
+
+                status("Conectando ao núcleo", "Aguardando o Ubuntu e o systemd do usuário");
+                ProcessResult warm = WaitForUserSystemd(55);
+                LogResult("wsl-user-systemd", warm);
+                if (warm.TimedOut || warm.ExitCode != 0)
                 {
                     return StartupResult.Fail(
-                        "Não consegui iniciar os serviços do Nexo.",
-                        Compact(start.Error + " " + start.Output));
+                        "Não consegui preparar o ambiente WSL do Nexo.",
+                        Compact(warm.Error + " " + warm.Output));
                 }
 
-                status("Validando os módulos", "Escuta, voz, inteligência e interface");
-                ProcessResult active = RunWsl(
-                    "systemctl --user is-active nexo-pulse-aec.service ovos-audio.service " +
-                    "ovos-listener.service ovos-core.service nexo-ui.service",
+                ProcessResult units = RunWsl(
+                    "systemctl --user cat ovos-core.service nexo-ui.service >/dev/null 2>&1",
                     20000);
-                if (active.ExitCode != 0)
+                LogResult("runtime-units", units);
+                if (units.TimedOut || units.ExitCode != 0)
+                {
+                    return StartupResult.SetupRequired(
+                        "A instalação do Nexo está incompleta.",
+                        "Execute o NexoSetup.exe para instalar ou reparar os serviços.");
+                }
+
+                ProcessResult start = StartServicesWithRetry(status, 3);
+                LogResult("essential-services-start", start);
+
+                status("Validando os módulos", "Escuta, voz, inteligência e interface");
+                ProcessResult active = CheckEssentialServices();
+                LogResult("essential-services-final", active);
+                if (active.TimedOut || active.ExitCode != 0)
                 {
                     return StartupResult.Fail(
                         "Um dos módulos essenciais não ficou ativo.",
                         Compact(active.Output + " " + active.Error));
                 }
+
+                RunWsl(
+                    "for unit in ovos-phal.service nexo-neural-tts.service; do " +
+                    "systemctl --user cat \"$unit\" >/dev/null 2>&1 && " +
+                    "systemctl --user start --no-block \"$unit\" || true; done",
+                    15000);
 
                 status("Conectando ao Windows", "Verificando a ponte segura de ações");
                 string warning = EnsureBridge()
@@ -585,12 +722,111 @@ namespace Nexo.WindowsLauncher
                         Compact(logs.Output + " " + logs.Error));
                 }
 
+                LauncherLog.Write("EnsureStarted: startup completed successfully.");
                 return StartupResult.Ok("Todos os sistemas estão operacionais.", warning);
             }
             catch (Exception error)
             {
+                LauncherLog.Write("EnsureStarted: unexpected exception: " + error.Message);
                 return StartupResult.Fail("Falha inesperada ao iniciar o Nexo.", Compact(error.Message));
             }
+        }
+
+        private static ProcessResult WaitForUserSystemd(int seconds)
+        {
+            Stopwatch deadline = Stopwatch.StartNew();
+            TimeSpan limit = TimeSpan.FromSeconds(seconds);
+            ProcessResult last = new ProcessResult { Error = "O systemd do usuário não respondeu." };
+            int attempt = 0;
+            while (deadline.Elapsed < limit)
+            {
+                attempt++;
+                int remaining = (int)(limit - deadline.Elapsed).TotalMilliseconds;
+                if (remaining <= 0) break;
+                last = RunWsl(
+                    "systemctl --user show-environment >/dev/null",
+                    Math.Max(250, Math.Min(12000, remaining)));
+                if (!last.TimedOut && last.ExitCode == 0) return last;
+                LogResult("wsl-user-systemd-attempt-" + attempt, last);
+                remaining = (int)(limit - deadline.Elapsed).TotalMilliseconds;
+                if (remaining <= 0) break;
+                Thread.Sleep(Math.Min(1250, remaining));
+            }
+            last.TimedOut = true;
+            return last;
+        }
+
+        private static ProcessResult StartServicesWithRetry(
+            Action<string, string> status,
+            int attempts)
+        {
+            ProcessResult last = new ProcessResult { Error = "Os serviços não responderam." };
+            for (int attempt = 1; attempt <= attempts; attempt++)
+            {
+                status(
+                    "Inicializando os módulos",
+                    attempt == 1
+                        ? "Ativando escuta, voz, inteligência e interface"
+                        : "Confirmando os módulos (tentativa " + attempt + " de " + attempts + ")");
+
+                ProcessResult start = RunWsl(
+                    "systemctl --user start --no-block " + EssentialServices,
+                    30000);
+                LogResult("service-start-attempt-" + attempt, start);
+
+                Stopwatch settle = Stopwatch.StartNew();
+                TimeSpan settleLimit = TimeSpan.FromSeconds(18);
+                while (settle.Elapsed < settleLimit)
+                {
+                    int remaining = (int)(settleLimit - settle.Elapsed).TotalMilliseconds;
+                    if (remaining <= 0) break;
+                    last = CheckEssentialServices(Math.Max(250, Math.Min(15000, remaining)));
+                    if (!last.TimedOut && last.ExitCode == 0) return last;
+                    remaining = (int)(settleLimit - settle.Elapsed).TotalMilliseconds;
+                    if (remaining > 0) Thread.Sleep(Math.Min(750, remaining));
+                }
+
+                if (attempt < attempts)
+                {
+                    RunWsl("systemctl --user reset-failed >/dev/null 2>&1 || true", 10000);
+                    Thread.Sleep(900 * attempt);
+                }
+            }
+            return last;
+        }
+
+        private static ProcessResult CheckEssentialServices()
+        {
+            return CheckEssentialServices(15000);
+        }
+
+        private static ProcessResult CheckEssentialServices(int timeout)
+        {
+            return RunWsl(
+                "failed=0; for unit in " + EssentialServices + "; do " +
+                "state=$(systemctl --user is-active \"$unit\" 2>&1); " +
+                "printf '%s=%s\\n' \"$unit\" \"$state\"; " +
+                "[ \"$state\" = active ] || failed=1; done; exit $failed",
+                timeout);
+        }
+
+        private static void LogResult(string stage, ProcessResult result)
+        {
+            if (result == null)
+            {
+                LauncherLog.Write(stage + ": no process result.");
+                return;
+            }
+            LauncherLog.Write(
+                stage + ": exit=" + result.ExitCode +
+                " timedOut=" + result.TimedOut +
+                " output=" + LogValue(result.Output) +
+                " error=" + LogValue(result.Error));
+        }
+
+        private static string LogValue(string value)
+        {
+            return string.IsNullOrWhiteSpace(value) ? "(none)" : Compact(value);
         }
 
         public static StartupResult RepairMicrophone(Action<string, string> status)
@@ -625,6 +861,68 @@ namespace Nexo.WindowsLauncher
                 return StartupResult.Fail("Os serviços voltaram, mas a interface ainda não respondeu.", "");
             }
             return StartupResult.Ok("O Nexo foi recarregado e está disponível.", "");
+        }
+
+        public static void OpenInstaller()
+        {
+            string executableDirectory = Path.GetDirectoryName(Application.ExecutablePath);
+            string candidate = Path.Combine(executableDirectory, "NexoSetup.exe");
+            if (File.Exists(candidate))
+            {
+                try
+                {
+                    LauncherLog.Write("Opening installer: " + candidate);
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = candidate,
+                        WorkingDirectory = Path.GetDirectoryName(candidate),
+                        UseShellExecute = true
+                    });
+                    return;
+                }
+                catch (Exception error)
+                {
+                    LauncherLog.Write("Could not open installer: " + error.Message);
+                }
+            }
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://github.com/SamTecDev7/nexo-actions/releases/latest",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception error)
+            {
+                LauncherLog.Write("Could not open installer download page: " + error.Message);
+            }
+        }
+
+        public static void OpenLog()
+        {
+            LauncherLog.Write("Opening launcher diagnostic log.");
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = LauncherLog.FilePath,
+                    UseShellExecute = true
+                });
+            }
+            catch
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "notepad.exe",
+                        Arguments = QuoteWindowsArgument(LauncherLog.FilePath),
+                        UseShellExecute = false
+                    });
+                }
+                catch { }
+            }
         }
 
         public static void OpenUi(string path)
@@ -766,13 +1064,17 @@ namespace Nexo.WindowsLauncher
 
         private static bool WaitForUi(int seconds)
         {
-            for (int i = 0; i < seconds * 2; i++)
+            Stopwatch deadline = Stopwatch.StartNew();
+            TimeSpan limit = TimeSpan.FromSeconds(seconds);
+            while (deadline.Elapsed < limit)
             {
                 try
                 {
+                    int remaining = (int)(limit - deadline.Elapsed).TotalMilliseconds;
+                    if (remaining <= 0) break;
                     HttpWebRequest request = (HttpWebRequest)WebRequest.Create(Settings.UiBase + "/api/state");
-                    request.Timeout = 1200;
-                    request.ReadWriteTimeout = 1200;
+                    request.Timeout = Math.Max(100, Math.Min(1200, remaining));
+                    request.ReadWriteTimeout = request.Timeout;
                     request.Proxy = null;
                     using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
                     {
@@ -780,7 +1082,8 @@ namespace Nexo.WindowsLauncher
                     }
                 }
                 catch { }
-                Thread.Sleep(500);
+                int sleep = (int)(limit - deadline.Elapsed).TotalMilliseconds;
+                if (sleep > 0) Thread.Sleep(Math.Min(500, sleep));
             }
             return false;
         }
@@ -801,10 +1104,14 @@ namespace Nexo.WindowsLauncher
 
         private static ProcessResult RunWsl(string command, int timeout)
         {
-            string escaped = command.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            string distro = ValidateDistro(Settings.Distro);
+            string userArgument = string.IsNullOrEmpty(Settings.WslUser)
+                ? ""
+                : " -u " + QuoteWindowsArgument(ValidateWslUser(Settings.WslUser));
             return RunProcess(
                 WslExe,
-                "-d \"" + Settings.Distro.Replace("\"", "") + "\" -- bash -lc \"" + escaped + "\"",
+                "-d " + QuoteWindowsArgument(distro) + userArgument +
+                " --exec bash -lc " + QuoteWindowsArgument(command),
                 timeout,
                 true);
         }
@@ -813,6 +1120,8 @@ namespace Nexo.WindowsLauncher
         {
             ProcessResult result = new ProcessResult();
             using (Process process = new Process())
+            using (MemoryStream output = new MemoryStream())
+            using (MemoryStream error = new MemoryStream())
             {
                 process.StartInfo = new ProcessStartInfo
                 {
@@ -822,27 +1131,17 @@ namespace Nexo.WindowsLauncher
                     CreateNoWindow = hidden,
                     WindowStyle = hidden ? ProcessWindowStyle.Hidden : ProcessWindowStyle.Normal,
                     RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8
+                    RedirectStandardError = true
                 };
                 process.Start();
-                StringBuilder output = new StringBuilder();
-                StringBuilder error = new StringBuilder();
-                process.OutputDataReceived += delegate(object sender, DataReceivedEventArgs e)
-                {
-                    if (e.Data != null) output.AppendLine(e.Data);
-                };
-                process.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs e)
-                {
-                    if (e.Data != null) error.AppendLine(e.Data);
-                };
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
+                Thread outputReader = StartStreamReader(process.StandardOutput.BaseStream, output);
+                Thread errorReader = StartStreamReader(process.StandardError.BaseStream, error);
                 if (!process.WaitForExit(timeout))
                 {
                     result.TimedOut = true;
                     try { process.Kill(); }
+                    catch { }
+                    try { process.WaitForExit(5000); }
                     catch { }
                 }
                 else
@@ -850,16 +1149,149 @@ namespace Nexo.WindowsLauncher
                     process.WaitForExit();
                     result.ExitCode = process.ExitCode;
                 }
-                result.Output = output.ToString();
-                result.Error = error.ToString();
+                if (!outputReader.Join(3000))
+                {
+                    try { process.StandardOutput.Close(); }
+                    catch { }
+                    outputReader.Join(1000);
+                }
+                if (!errorReader.Join(3000))
+                {
+                    try { process.StandardError.Close(); }
+                    catch { }
+                    errorReader.Join(1000);
+                }
+                result.Output = DecodeProcessOutput(Snapshot(output));
+                result.Error = DecodeProcessOutput(Snapshot(error));
             }
             return result;
         }
 
+        private static Thread StartStreamReader(Stream source, MemoryStream destination)
+        {
+            Thread reader = new Thread(delegate()
+            {
+                byte[] buffer = new byte[4096];
+                try
+                {
+                    int count;
+                    while ((count = source.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        lock (destination) destination.Write(buffer, 0, count);
+                    }
+                }
+                catch { }
+            });
+            reader.IsBackground = true;
+            reader.Start();
+            return reader;
+        }
+
+        private static byte[] Snapshot(MemoryStream stream)
+        {
+            lock (stream) return stream.ToArray();
+        }
+
+        private static string DecodeProcessOutput(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length == 0) return "";
+            int offset = 0;
+            Encoding encoding = new UTF8Encoding(false, false);
+            if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+            {
+                encoding = Encoding.Unicode;
+                offset = 2;
+            }
+            else if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+            {
+                encoding = Encoding.BigEndianUnicode;
+                offset = 2;
+            }
+            else if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            {
+                offset = 3;
+            }
+            else
+            {
+                int sample = Math.Min(bytes.Length, 1024);
+                int pairs = sample / 2;
+                int oddZeros = 0;
+                int evenZeros = 0;
+                for (int i = 0; i + 1 < sample; i += 2)
+                {
+                    if (bytes[i] == 0) evenZeros++;
+                    if (bytes[i + 1] == 0) oddZeros++;
+                }
+                if (pairs >= 2 && oddZeros * 100 / pairs >= 30 && oddZeros > evenZeros * 2)
+                    encoding = Encoding.Unicode;
+                else if (pairs >= 2 && evenZeros * 100 / pairs >= 30 && evenZeros > oddZeros * 2)
+                    encoding = Encoding.BigEndianUnicode;
+            }
+            return encoding.GetString(bytes, offset, bytes.Length - offset)
+                .Replace("\0", "").TrimStart('\uFEFF');
+        }
+
+        private static string ValidateDistro(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) throw new InvalidOperationException("Distribuição WSL não configurada.");
+            foreach (char character in value)
+            {
+                if (!(char.IsLetterOrDigit(character) || character == ' ' || character == '-' ||
+                      character == '_' || character == '.'))
+                    throw new InvalidOperationException("Nome de distribuição WSL inválido.");
+            }
+            return value;
+        }
+
+        private static string ValidateWslUser(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return "";
+            foreach (char character in value)
+            {
+                if (!(char.IsLetterOrDigit(character) || character == '-' ||
+                      character == '_' || character == '.'))
+                    throw new InvalidOperationException("Usuário WSL inválido.");
+            }
+            return value;
+        }
+
+        private static string QuoteWindowsArgument(string value)
+        {
+            if (value == null) return "\"\"";
+            bool needsQuotes = value.Length == 0;
+            foreach (char character in value)
+                if (char.IsWhiteSpace(character) || character == '\"') needsQuotes = true;
+            if (!needsQuotes) return value;
+
+            StringBuilder quoted = new StringBuilder("\"");
+            int backslashes = 0;
+            foreach (char character in value)
+            {
+                if (character == '\\')
+                {
+                    backslashes++;
+                    continue;
+                }
+                if (character == '\"')
+                {
+                    quoted.Append('\\', backslashes * 2 + 1);
+                    quoted.Append('\"');
+                    backslashes = 0;
+                    continue;
+                }
+                quoted.Append('\\', backslashes);
+                backslashes = 0;
+                quoted.Append(character);
+            }
+            quoted.Append('\\', backslashes * 2);
+            quoted.Append('\"');
+            return quoted.ToString();
+        }
+
         private static string Compact(string value)
         {
-            if (string.IsNullOrWhiteSpace(value)) return "Consulte os logs locais para mais detalhes.";
-            string compact = value.Replace("\r", " ").Replace("\n", " ").Trim();
+            if (string.IsNullOrWhiteSpace(value)) return "Abra o diagnóstico do launcher para mais detalhes.";
+            string compact = value.Replace("\0", "").Replace("\r", " ").Replace("\n", " ").Trim();
             while (compact.Contains("  ")) compact = compact.Replace("  ", " ");
             return compact.Length > 260 ? compact.Substring(0, 257) + "..." : compact;
         }

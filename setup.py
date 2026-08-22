@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="nexo-actions",
-    version="2.0.0",
+    version="2.0.1",
     description="Nexo OpenAI-first realtime voice and Windows computer agent",
     python_requires=">=3.10,<3.13",
     packages=find_packages(),

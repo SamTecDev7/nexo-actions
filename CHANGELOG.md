@@ -10,6 +10,26 @@ segue versionamento semântico.
 - assinatura de código para os executáveis Windows;
 - validação contínua do instalador em uma máquina Windows/WSL descartável.
 
+## [2.0.1] - 2026-08-22
+
+### Corrigido
+
+- partida a frio do WSL agora aguarda o `systemd --user`, repete ativações
+  transitórias e valida o estado final antes de declarar falha;
+- mensagens nativas do `wsl.exe` em UTF-16LE são decodificadas corretamente,
+  sem o diagnóstico aparecer truncado como apenas `N`;
+- o limite de espera da interface usa um prazo real, e processos expirados não
+  podem mais ser interpretados como sucesso;
+- o instalador registra o usuário WSL e o launcher sempre executa os serviços
+  na conta Linux correta.
+
+### Alterado
+
+- execução avulsa do `Nexo.exe` sem instalação agora orienta claramente a usar
+  o `NexoSetup.exe` e oferece acesso direto ao instalador;
+- o launcher mantém um diagnóstico persistente em
+  `%LOCALAPPDATA%\\Nexo\\logs\\launcher.log` e permite abri-lo pela tela de erro.
+
 ## [2.0.0] - 2026-08-22
 
 ### Adicionado
@@ -44,5 +64,6 @@ segue versionamento semântico.
 - políticas de log por ferramenta com redação de conteúdo sensível;
 - confirmações de uso único para operações de maior risco.
 
-[Unreleased]: https://github.com/SamTecDev7/nexo-actions/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/SamTecDev7/nexo-actions/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/SamTecDev7/nexo-actions/releases/tag/v2.0.1
 [2.0.0]: https://github.com/SamTecDev7/nexo-actions/releases/tag/v2.0.0

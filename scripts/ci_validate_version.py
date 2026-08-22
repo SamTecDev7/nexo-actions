@@ -54,6 +54,19 @@ def main() -> int:
                 f"setup.py={package_version}, installer={installer_file_version}"
             )
 
+    install_script = root / "installer/windows/Install-Nexo.ps1"
+    if install_script.is_file():
+        receipt_version = _capture(
+            install_script,
+            r"^\s*version\s*=\s*'([^']+)'",
+            "versão do recibo de instalação",
+        )
+        if package_version != receipt_version:
+            raise SystemExit(
+                "versões divergentes: "
+                f"setup.py={package_version}, installation.json={receipt_version}"
+            )
+
     if args.tag:
         try:
             tag_version = _tag_version(args.tag)

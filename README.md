@@ -86,6 +86,11 @@ confira o hash e abra o executável. O assistente pergunta o necessário e cuida
 de WSL, Ubuntu, Python, OVOS, OpenAI, áudio/AEC, serviços, bridge, atalhos e
 diagnóstico.
 
+> **Primeira instalação:** baixe e execute `NexoSetup.exe`. O arquivo
+> `Nexo.exe` é o inicializador usado **depois** da instalação e não deve ser
+> aberto isoladamente na pasta Downloads. Se isso acontecer, ele agora oferece
+> o botão **Instalar / Reparar** e encaminha ao instalador correto.
+
 Pré-requisitos mínimos:
 
 - Windows 11 x64 com virtualização habilitada;

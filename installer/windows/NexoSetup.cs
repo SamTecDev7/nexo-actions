@@ -10,8 +10,8 @@ using System.Threading;
 [assembly: AssemblyDescription("Instalador ponta a ponta do Nexo para Windows e WSL")]
 [assembly: AssemblyCompany("Nexo")]
 [assembly: AssemblyProduct("Nexo Setup")]
-[assembly: AssemblyVersion("2.0.0.0")]
-[assembly: AssemblyFileVersion("2.0.0.0")]
+[assembly: AssemblyVersion("2.0.1.0")]
+[assembly: AssemblyFileVersion("2.0.1.0")]
 
 namespace Nexo.WindowsSetup
 {
