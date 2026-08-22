@@ -4,7 +4,7 @@
 ovos-core==2.1.1
 ovos-dinkum-listener==0.5.0
 ovos-audio==1.2.0
-ovos-workshop==7.0.6
+ovos-workshop==8.0.0
 ovos-PHAL==0.2.12
 ovos-messagebus==0.2.1a2
 ovos-plugin-manager==2.2.0
