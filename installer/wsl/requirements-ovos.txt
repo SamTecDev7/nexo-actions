@@ -8,7 +8,7 @@ ovos-workshop==7.0.6
 ovos-PHAL==0.2.12
 ovos-messagebus==0.2.1a2
 ovos-plugin-manager==2.2.0
-ovos-utils==0.8.4
+ovos-utils==0.8.5
 ovos-config==2.1.1
 ovos-bus-client==1.5.0
 ovos-microphone-plugin-alsa==0.1.3
