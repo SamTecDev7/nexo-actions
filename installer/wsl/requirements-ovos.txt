@@ -18,7 +18,7 @@ ovos-vad-plugin-silero==0.1.0
 ovos-stt-plugin-fasterwhisper==0.4.0
 ovos-tts-plugin-piper==0.2.5
 faster-whisper==1.2.1
-sounddevice==0.5.5
+sounddevice==0.5.6
 webrtcvad==2.0.10
 numpy==1.26.4
 websocket-client==1.9.0
