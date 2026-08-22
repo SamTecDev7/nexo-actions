@@ -1,0 +1,7 @@
+# Runtime pieces imported by the unit/integration suite. No model weights are downloaded.
+numpy==1.26.4
+ovos-bus-client==1.5.0
+ovos-stt-plugin-fasterwhisper==0.4.0
+ovos-utils==0.8.4
+ovos-workshop==7.0.6
+websocket-client==1.9.0

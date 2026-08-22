@@ -1,0 +1,16 @@
+[Unit]
+Description=Nexo WebRTC Acoustic Echo Cancellation
+Wants=pipewire-pulse.service
+After=pipewire-pulse.service
+Before=ovos-audio.service ovos-listener.service
+
+[Service]
+Type=notify
+NotifyAccess=main
+ExecStart=/usr/bin/python3 %h/nexo-actions/scripts/nexo_pulse_aec.py --runtime-root=%h/.local/share/nexo-pulse/root --config=%h/nexo-actions/scripts/nexo-pulse-aec.pa
+Restart=on-failure
+RestartSec=2
+TimeoutStartSec=25
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=Nexo intelligent microphone recovery watchdog
+Wants=nexo-pulse-aec.service
+After=nexo-pulse-aec.service
+
+[Service]
+Type=simple
+ExecStart=%h/.venvs/ovos/bin/python -m nexo_actions.audio_recovery watch
+Restart=always
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

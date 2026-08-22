@@ -1,0 +1,13 @@
+.fail
+
+# Isolated PulseAudio server used by Nexo.  The WSLg devices remain untouched;
+# these two tunnels are just clients of the normal RDPSink/RDPSource pair.
+load-module module-native-protocol-unix socket=/tmp/nexo-pulse/native auth-anonymous=1
+# Establish capture first. Some USB/capture devices make WSLg retire the
+# transient RDPSource while the playback tunnel is still negotiating.
+load-module module-tunnel-source-new server=unix:/mnt/wslg/PulseServer source=RDPSource source_name=NexoWSLgSource source_properties=device.description=Nexo_WSLg_Microphone
+load-module module-tunnel-sink-new server=unix:/mnt/wslg/PulseServer sink=RDPSink sink_name=NexoWSLgSink sink_properties=device.description=Nexo_WSLg_Output
+
+# The tunnels are created asynchronously.  nexo_pulse_aec.py waits until both
+# masters exist and then loads WebRTC, avoiding a startup race that can leave
+# the virtual microphone missing.

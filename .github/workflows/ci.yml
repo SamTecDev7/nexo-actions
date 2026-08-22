@@ -1,0 +1,173 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-tests:
+    name: Python ${{ matrix.python-version }} / Linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Python ${{ matrix.python-version }}
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            setup.py
+            requirements-openai.txt
+            .github/requirements-ci.txt
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r .github/requirements-ci.txt
+          python -m pip install --no-deps -e .
+
+      - name: Reject committed credentials
+        run: python scripts/ci_check_repository.py
+
+      - name: Validate version metadata
+        run: python scripts/ci_validate_version.py
+
+      - name: Compile Python sources
+        run: python -m compileall -q nexo_actions scripts tests
+
+      - name: Validate WSL shell syntax
+        run: bash -n installer/wsl/*.sh
+
+      - name: Run unit and integration tests
+        env:
+          NEXO_CI: "1"
+        run: python -m unittest discover -s tests -q
+
+  installer-simulation:
+    name: Installer simulation / ${{ matrix.ubuntu-version }}
+    runs-on: ${{ matrix.ubuntu-version }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu-version:
+          - ubuntu-22.04
+          - ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Python 3.11
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Validate installer shell syntax
+        run: bash -n installer/wsl/*.sh
+
+      - name: Simulate clean install, update and repair
+        env:
+          NEXO_CI: "1"
+        run: python -m unittest tests.test_installer_simulation -v
+
+  windows-artifacts:
+    name: Windows launcher and installer
+    needs:
+      - python-tests
+      - installer-simulation
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Python 3.11
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: ./scripts/ci_validate_powershell.ps1
+
+      - name: Simulate installer modes without touching runner state
+        shell: pwsh
+        run: ./scripts/ci_test_windows_installer.ps1
+
+      - name: Build Nexo.exe without installing it
+        shell: pwsh
+        run: |
+          ./scripts/build_windows_exe.ps1 `
+            -OutputDirectory (Join-Path $PWD 'dist/windows') `
+            -NoDesktopShortcut `
+            -BuildOnly
+
+      - name: Build NexoSetup.exe
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -LiteralPath './scripts/build_windows_installer.ps1')) {
+            throw 'scripts/build_windows_installer.ps1 não existe.'
+          }
+          $installerBuild = ./scripts/build_windows_installer.ps1 `
+            -OutputDirectory (Join-Path $PWD 'dist/windows') `
+            -SourceRef $env:GITHUB_SHA |
+            ConvertFrom-Json
+          if ($installerBuild.source_ref_embedded -ne $env:GITHUB_SHA) {
+            throw 'NexoSetup.exe não foi vinculado ao commit imutável do workflow.'
+          }
+          $installerBuild | ConvertTo-Json -Compress
+
+      - name: Verify immutable source inside NexoSetup.exe
+        shell: pwsh
+        run: |
+          ./scripts/ci_validate_installer_resources.ps1 `
+            -InstallerPath (Join-Path $PWD 'dist/windows/NexoSetup.exe') `
+            -ExpectedSourceRef $env:GITHUB_SHA
+
+      - name: Validate release artifacts
+        run: >-
+          python scripts/ci_validate_artifacts.py
+          --directory dist/windows
+          --require-launcher
+          --require-installer
+          --source-commit $env:GITHUB_SHA
+          --manifest dist/windows/ReleaseManifest.json
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nexo-windows-${{ github.sha }}
+          path: |
+            dist/windows/Nexo.exe
+            dist/windows/NexoSetup.exe
+            dist/windows/ReleaseManifest.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

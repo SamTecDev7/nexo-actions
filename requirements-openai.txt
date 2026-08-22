@@ -1,0 +1,2 @@
+# OpenAI-first realtime voice transport. Responses calls use the Python stdlib.
+websocket-client>=1.8,<2

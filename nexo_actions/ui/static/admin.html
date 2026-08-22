@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Nexo // Núcleo ADM</title>
+  <link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <div class="grid" aria-hidden="true"></div>
+
+  <div class="auth-shell" id="authShell">
+    <div class="auth-aura" aria-hidden="true">
+      <div class="mini-core"><i></i><i></i><i></i></div>
+    </div>
+    <form class="auth-card glass" id="authForm">
+      <p class="eyebrow">ACESSO LOCAL PROTEGIDO</p>
+      <h1 id="authTitle">Núcleo ADM</h1>
+      <p class="auth-copy" id="authCopy">Autentique-se para alterar o cérebro e a voz do Nexo.</p>
+      <label class="field">
+        <span>Senha do Nexo</span>
+        <input id="password" name="password" type="password" minlength="8" maxlength="128" autocomplete="current-password" required autofocus>
+      </label>
+      <label class="field hidden" id="confirmField">
+        <span>Confirmar senha</span>
+        <input id="confirmPassword" name="confirmPassword" type="password" minlength="8" maxlength="128" autocomplete="new-password">
+      </label>
+      <button class="primary wide" id="authButton" type="submit">ENTRAR NO NÚCLEO</button>
+      <p class="microcopy">A senha é exclusiva do Nexo e nunca é enviada para a internet.</p>
+      <p class="form-error" id="authError" role="alert"></p>
+    </form>
+  </div>
+
+  <main class="app hidden" id="app">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Voltar para Nexo">
+        <span class="brand-mark"><b></b></span>
+        <span><strong>NEXO</strong><small>CONTROL SYSTEM</small></span>
+      </a>
+      <div class="top-status">
+        <span class="pulse-dot"></span>
+        <span>SISTEMA LOCAL</span>
+        <button class="ghost compact" id="logoutButton" type="button">BLOQUEAR</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="core-visual" aria-hidden="true">
+          <div class="core-ring ring-one"></div>
+          <div class="core-ring ring-two"></div>
+          <div class="core-ring ring-three"></div>
+          <div class="core-light"></div>
+        </div>
+        <p class="core-label">NÚCLEO NEURAL</p>
+        <nav class="nav" aria-label="Seções administrativas">
+          <button class="nav-item active" data-tab="voice" type="button"><span>01</span> Voz & Escuta</button>
+          <button class="nav-item" data-tab="intelligence" type="button"><span>02</span> Inteligência</button>
+          <button class="nav-item" data-tab="conversation" type="button"><span>03</span> Conversa</button>
+          <button class="nav-item" data-tab="system" type="button"><span>04</span> Diagnóstico</button>
+        </nav>
+        <div class="security-note">
+          <span class="lock-icon">◇</span>
+          <p><strong>PERÍMETRO SEGURO</strong>Somente 127.0.0.1</p>
+        </div>
+      </aside>
+
+      <section class="content">
+        <div class="content-head">
+          <div>
+            <p class="eyebrow">CONFIGURAÇÃO ADAPTATIVA</p>
+            <h1 id="sectionTitle">Voz & Escuta</h1>
+          </div>
+          <div class="dirty-indicator" id="dirtyIndicator"><span></span> Sincronizado</div>
+        </div>
+
+        <section class="tab active" id="tab-voice">
+          <div class="cards two-columns">
+            <article class="panel glass">
+              <div class="panel-head">
+                <div><span class="index">TTS // 01</span><h2>Voz sintetizada</h2></div>
+                <span class="badge cyan" id="ttsBadge">PIPER</span>
+              </div>
+              <p class="panel-copy">Escolha a identidade vocal e ajuste o ritmo sem reiniciar todo o Nexo.</p>
+              <label class="field">
+                <span>Modelo de voz instalado</span>
+                <select id="ttsModel"></select>
+              </label>
+              <div class="model-readout" id="ttsReadout">
+                <span>MOTOR</span><strong>Local e imediato</strong><small>Piper usa pouca memória e permanece como fallback seguro</small>
+              </div>
+              <div class="range-field">
+                <div><span>Ritmo da fala</span><output id="ttsSpeedOutput">1.00×</output></div>
+                <input id="ttsSpeed" type="range" min="0.55" max="1.8" step="0.05" value="1">
+                <div class="range-labels"><span>Mais rápido</span><span>Natural</span><span>Mais calmo</span></div>
+              </div>
+              <label class="field">
+                <span>Frase de teste</span>
+                <textarea id="previewText" rows="2" maxlength="240">Olá. Eu sou o Nexo. Sistemas prontos e aguardando seu comando.</textarea>
+              </label>
+              <button class="secondary" id="previewButton" type="button"><span>▶</span> TESTAR NA CAIXA DE SOM</button>
+              <audio id="previewAudio"></audio>
+              <div class="voice-library">
+                <div class="library-head"><span>CATÁLOGO OFICIAL PT-BR</span><small id="qualityNote"></small></div>
+                <div id="voiceLibrary"></div>
+              </div>
+            </article>
+
+            <article class="panel glass">
+              <div class="panel-head">
+                <div><span class="index">STT // 02</span><h2>Reconhecimento</h2></div>
+                <span class="badge violet">WHISPER</span>
+              </div>
+              <p class="panel-copy">Defina o equilíbrio entre velocidade, uso de VRAM e precisão ao entender sua voz.</p>
+              <label class="field">
+                <span>Modelo de escuta</span>
+                <select id="sttModel"></select>
+              </label>
+              <div class="model-readout" id="sttReadout">
+                <span>PERFIL</span><strong>Alta precisão</strong><small>VRAM estimada: 5 GB</small>
+              </div>
+              <div class="range-field">
+                <div><span>Profundidade de análise</span><output id="beamOutput">5</output></div>
+                <input id="beamSize" type="range" min="1" max="10" step="1" value="5">
+              </div>
+              <label class="switch-row">
+                <span><strong>Aceleração CUDA</strong><small>Processar a escuta na GPU</small></span>
+                <input id="sttCuda" type="checkbox"><i></i>
+              </label>
+            </article>
+
+            <article class="panel glass span-two">
+              <div class="panel-head">
+                <div><span class="index">MIC // AUTO</span><h2>Entrada e recuperação</h2></div>
+                <span class="badge cyan" id="micBadge">VERIFICANDO</span>
+              </div>
+              <p class="panel-copy">Monitora amostras reais da placa externa e reconstrói automaticamente WSLg, cancelamento de eco e listener após uma desconexão.</p>
+              <div class="split-form mic-control-grid">
+                <div>
+                  <div class="range-field">
+                    <div><span>Ganho do microfone</span><output id="micGainOutput">135%</output></div>
+                    <input id="micGain" type="range" min="50" max="200" step="5" value="135">
+                    <div class="range-labels"><span>Mais baixo</span><span>Natural</span><span>Mais forte</span></div>
+                  </div>
+                  <label class="switch-row">
+                    <span><strong>Recuperação automática</strong><small>Reaplicar a placa quando o fluxo de áudio parar</small></span>
+                    <input id="micAutoRecover" type="checkbox" checked><i></i>
+                  </label>
+                </div>
+                <div>
+                  <div class="model-readout" id="micReadout">
+                    <span>FLUXO REAL</span><strong>Verificando entrada</strong><small>Aguardando diagnóstico do NexoAECSource</small>
+                  </div>
+                  <div class="mic-actions">
+                    <button class="secondary" id="repairMicButton" type="button">REAPLICAR MICROFONE</button>
+                    <button class="ghost compact" id="refreshMicButton" type="button">TESTAR FLUXO</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+            <article class="panel glass span-two usage-panel">
+              <div class="panel-head">
+                <div><span class="index">API // METER</span><h2>Consumo medido</h2></div>
+                <span class="badge violet">SEM CONTEÚDO</span>
+              </div>
+              <p class="panel-copy">O Nexo registra somente contagem de tokens, quantidade de requisições e latência. Áudio, tela, prompts e respostas não entram nesse histórico.</p>
+              <div class="usage-grid">
+                <div class="usage-metric"><span>HOJE</span><strong id="usageRequests">0</strong><small>requisições</small></div>
+                <div class="usage-metric"><span>TOKENS</span><strong id="usageTokens">0</strong><small>entrada + saída hoje</small></div>
+                <div class="usage-metric"><span>LATÊNCIA</span><strong id="usageLatency">0 ms</strong><small>média por requisição</small></div>
+                <div class="usage-metric"><span>MÊS</span><strong id="usageMonth">0</strong><small>tokens acumulados</small></div>
+              </div>
+              <small class="usage-note" id="usageNote">Custo não estimado sem tabela oficial versionada.</small>
+            </article>
+          </div>
+        </section>
+
+        <section class="tab" id="tab-intelligence">
+          <div class="cards two-columns">
+            <article class="panel glass span-two">
+              <div class="panel-head">
+                <div><span class="index">AI // LIVE</span><h2>Cérebro do Nexo</h2></div>
+                <span class="badge cyan" id="providerBadge">OPENAI</span>
+              </div>
+              <p class="panel-copy">A OpenAI assume conversa, visão e decisões de ferramentas. O Ollama permanece disponível como modo local compatível, sem ativação automática.</p>
+              <div class="provider-grid">
+                <div class="provider-column">
+                  <label class="field"><span>Provedor principal</span><select id="aiProvider"></select></label>
+                  <div class="model-readout" id="providerReadout">
+                    <span>CONEXÃO</span><strong>Verificando credencial</strong><small>Nenhum segredo é enviado ao navegador</small>
+                  </div>
+                  <button class="secondary provider-test" id="testProviderButton" type="button">TESTAR CONEXÃO</button>
+                  <label class="switch-row">
+                    <span><strong>Fallback automático pausado</strong><small>Para usar o modo local, selecione Ollama como provedor principal</small></span>
+                    <input id="fallbackEnabled" type="checkbox" disabled><i></i>
+                  </label>
+                </div>
+
+                <div class="provider-fields" id="openaiFields">
+                  <label class="field"><span>Modelo agente, visão e ações</span><select id="aiAgentModel"></select></label>
+                  <label class="field"><span>Modelo de voz em tempo real</span><select id="aiRealtimeModel"></select></label>
+                  <label class="field"><span>Voz OpenAI</span><select id="aiVoice"></select></label>
+                  <p class="panel-copy">A fala selecionada é uma voz sintetizada por inteligência artificial.</p>
+                  <label class="field"><span>Profundidade para planejar ações</span><select id="reasoningEffort"></select></label>
+                  <label class="field"><span>Detalhamento do agente</span><select id="agentTextVerbosity"></select></label>
+                  <label class="field"><span>Caminho rápido para tarefas cotidianas</span><select id="routineReasoningEffort"></select></label>
+                  <label class="field"><span>Raciocínio da voz em tempo real</span><select id="realtimeReasoningEffort"></select></label>
+                  <label class="field"><span>Estilo padrão da resposta</span><select id="realtimeResponseStyle"></select></label>
+                  <p class="panel-copy">Recomendado: raciocínio mínimo e resposta concisa. Tarefas complexas continuam usando o agente com a profundidade escolhida acima.</p>
+                </div>
+
+                <div class="provider-fields hidden" id="ollamaFields">
+                  <label class="field"><span>Modelo local instalado</span><select id="ollamaModel"></select></label>
+                  <label class="field">
+                    <span>Manter carregado por</span>
+                    <select id="keepAlive">
+                      <option value="5m">5 minutos</option>
+                      <option value="15m">15 minutos</option>
+                      <option value="30m">30 minutos</option>
+                      <option value="1h">1 hora</option>
+                      <option value="-1">Sempre</option>
+                    </select>
+                  </label>
+                  <div class="model-readout">
+                    <span>LOCAL</span><strong>Compatibilidade preservada</strong><small>O modo local pode ser retomado a qualquer momento</small>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="tab" id="tab-conversation">
+          <div class="cards two-columns">
+            <article class="panel glass">
+              <div class="panel-head"><div><span class="index">FLOW // 01</span><h2>Naturalidade</h2></div></div>
+              <label class="switch-row">
+                <span><strong>Interrupção natural</strong><small>Permitir falar durante a resposta</small></span>
+                <input id="bargeIn" type="checkbox"><i></i>
+              </label>
+              <label class="switch-row">
+                <span><strong>Exigir “Nexo” para interromper</strong><small>Ignora conversas da sala e só para quando você chamar</small></span>
+                <input id="bargeWakeword" type="checkbox"><i></i>
+              </label>
+              <label class="switch-row">
+                <span><strong>Proteção inteligente contra eco</strong><small>Distingue sua voz da própria resposta</small></span>
+                <input id="echoGuard" type="checkbox"><i></i>
+              </label>
+              <div class="range-field">
+                <div><span>Volume durante interrupção</span><output id="bargeVolumeOutput">20%</output></div>
+                <input id="bargeVolume" type="range" min="0" max="100" step="5" value="100">
+              </div>
+              <div class="range-field">
+                <div><span>Janela anti-eco</span><output id="echoWindowOutput">8s</output></div>
+                <input id="echoWindow" type="range" min="2" max="20" step="1" value="8">
+              </div>
+            </article>
+            <article class="panel glass">
+              <div class="panel-head"><div><span class="index">MEM // 02</span><h2>Memória da sessão</h2></div></div>
+              <label class="field"><span>Tempo de continuidade (segundos)</span><input id="conversationTimeout" type="number" min="30" max="1800" step="30"></label>
+              <label class="field"><span>Mensagens lembradas</span><input id="maxMessages" type="number" min="4" max="80" step="2"></label>
+              <label class="field"><span>Limite de resposta (tokens)</span><input id="maxTokens" type="number" min="256" max="8192" step="128"></label>
+            </article>
+          </div>
+        </section>
+
+        <section class="tab" id="tab-system">
+          <article class="panel glass">
+            <div class="panel-head">
+              <div><span class="index">SYS // LIVE</span><h2>Estado dos subsistemas</h2></div>
+              <button class="ghost compact" id="refreshButton" type="button">ATUALIZAR</button>
+            </div>
+            <div class="service-grid" id="serviceGrid"></div>
+          </article>
+        </section>
+
+        <footer class="action-bar glass">
+          <div class="apply-state"><span class="status-orb" id="statusOrb"></span><div><strong id="applyTitle">Configuração sincronizada</strong><small id="applyDetail">Nenhuma alteração pendente</small></div></div>
+          <button class="primary" id="applyButton" type="button" disabled>APLICAR ALTERAÇÕES</button>
+        </footer>
+      </section>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script src="/admin.js"></script>
+</body>
+</html>

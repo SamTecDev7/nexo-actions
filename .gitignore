@@ -1,0 +1,64 @@
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+
+# Build and release outputs
+build/
+dist/
+bin/
+obj/
+*.pdb
+*.sha256
+
+# Runtime state, diagnostics and media captures
+logs/
+*.log
+*.pid
+*.sqlite
+*.sqlite3
+*.db
+*.pcm
+*.raw
+*.wav
+
+# Local installer/update state
+.installer/
+.nexo-state/
+
+# Editor, OS and local agent metadata
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+.agents/
+.codex/
+
+# Scratch files and pre-refactor backups
+*.bak
+*.orig
+*.rej
+*.swp
+*~
+=0.9.4 soundfile
+.git.empty-placeholder
+
+# Legacy local experiments (Ollama path is intentionally frozen)
+/test_tool.py
+/test_tool_calling.py

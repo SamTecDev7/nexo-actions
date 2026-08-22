@@ -1,0 +1,20 @@
+[Unit]
+Description=Nexo Neural Brazilian Portuguese TTS
+After=network-online.target ollama.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/nexo/neural-tts-venv/bin/nexo-neural-tts --host 127.0.0.1 --port 8791
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.cache %h/.local/share/nexo
+Environment=PYTHONUNBUFFERED=1
+Environment=HF_HUB_OFFLINE=1
+Environment=TRANSFORMERS_OFFLINE=1
+
+[Install]
+WantedBy=default.target
